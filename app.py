@@ -23,7 +23,9 @@ Base.prepare(engine, reflect=True)
 Measurement = Base.classes.measurement
 
 # Create our session (link) from Python to the DB
-session = Session(engine)
+session1 = Session(engine)
+session2 = Session(engine)
+session3 = Session(engine)
 
 #################################################
 # Flask Setup
@@ -54,7 +56,7 @@ def welcome():
 def precipitation():
     """Return total preciptation data"""
     # Query all measurments
-    results = session.query(Measurement).all()
+    results = session1.query(Measurement).all()
 
     # Create a dictionary from the row data and append to a list
     prcp_data = []
@@ -72,7 +74,7 @@ def stations():
     """Return station data"""
     Station = Base.classes.station
     # Query all statios
-    station_results = session.query(Station).all()
+    station_results = session2.query(Station).all()
 
     # Create a dictionary from the row data and append to a list
     station_list = []
@@ -91,7 +93,7 @@ def temperatures():
     Measurement = Base.classes.measurement
     """Return temperature data"""
     # get the last date
-    get_last_date = session.query(Measurement.date).\
+    get_last_date = session3.query(Measurement.date).\
     order_by(Measurement.date.desc()).limit(1)
     last_date = get_last_date[0][0]
 
@@ -101,7 +103,7 @@ def temperatures():
             .date(),'%Y-%m-%d')
 
 # Query the Measurements for days after and including start date    
-    results = session.query(Measurement).\
+    results = session3.query(Measurement).\
     filter(func.strftime("%Y-%m-%d", Measurement.date) >= start_date)\
     .order_by(Measurement.date).all()
 
