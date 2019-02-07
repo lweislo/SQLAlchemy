@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, func, desc, exc
 import datetime as dt
 from datetime import datetime, time
 from flask import Flask, jsonify, request
-
+from dateutil.parser import parse
 
 #################################################
 # Database Setup
@@ -131,49 +131,51 @@ def onedate(date1):
     Measurement = Base.classes.measurement
     """Return temperature data"""
     try:
-        results = session4.query(func.min(Measurement.tobs).label('min'), func.avg(Measurement.tobs).label('avg')\
-        , func.max(Measurement.tobs).label('max')).\
-        filter(Measurement.date >= date1).all()
+        parse(date1)
+    except ValueError:
+        return f"The date {date1} is not in the correct format or is invalid"
+    
+    results = session4.query(func.min(Measurement.tobs).label('min'), func.avg(Measurement.tobs).label('avg')\
+    , func.max(Measurement.tobs).label('max')).\
+    filter(Measurement.date >= date1).all()
 
-        stats = list(np.ravel(results))
-        tmp_stats = []
-        for result in results:
-            result_dict = {}
-            result_dict["min"] = result.min
-            result_dict["avg"] = result.avg
-            result_dict["max"] = result.max
-            tmp_stats.append(result_dict)
+    stats = list(np.ravel(results))
+    tmp_stats = []
+    for result in results:
+        result_dict = {}
+        result_dict["min"] = result.min
+        result_dict["avg"] = result.avg
+        result_dict["max"] = result.max
+        tmp_stats.append(result_dict)
 
-        return jsonify(tmp_stats)
-        # return jsonify(stats)
-
-    except exc.SQLAlchemyError:
-        return f'something went wrong with {date1}'
+    return jsonify(tmp_stats)
+    # return jsonify(stats)
 
 @app.route("/api/v1.0/twotemp/<string:date1>/<string:date2>")
 def twodates(date1, date2):
-    Measurement = Base.classes.measurement
+
     try:
-        results = session5.query(func.min(Measurement.tobs).label('min'), func.avg(Measurement.tobs).label('avg')\
-        , func.max(Measurement.tobs).label('max')).\
-        filter(Measurement.date >= date1).filter(Measurement.date <= date2).all()
-        #Unravel the results
+        parse(date1)
+        parse(date2)
+    except ValueError:
+        return f"The date {date1} or {date2} is not in the correct format or is invalid"
 
-        tmp_stats = []
-        for result in results:
-            result_dict = {}
-            result_dict["min"] = result.min
-            result_dict["avg"] = result.avg
-            result_dict["max"] = result.max
-            tmp_stats.append(result_dict)
+    Measurement = Base.classes.measurement
 
-        return jsonify(tmp_stats)
+    results = session5.query(func.min(Measurement.tobs).label('min'), func.avg(Measurement.tobs).label('avg')\
+    , func.max(Measurement.tobs).label('max')).\
+    filter(Measurement.date >= date1).filter(Measurement.date <= date2).all()
+    #Unravel the results
 
+    tmp_stats = []
+    for result in results:
+        result_dict = {}
+        result_dict["min"] = result.min
+        result_dict["avg"] = result.avg
+        result_dict["max"] = result.max
+        tmp_stats.append(result_dict)
 
-
-        return jsonify(stats)
-    except exc.SQLAlchemyError:
-        return 'Something went wrong'
+    return jsonify(tmp_stats)
 
 if __name__ == '__main__':
     app.run(debug=True)
