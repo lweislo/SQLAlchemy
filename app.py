@@ -2,11 +2,11 @@ import numpy as np
 
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, func, desc
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy import create_engine, func, desc, exc
 import datetime as dt
 from datetime import datetime, time
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 
 #################################################
@@ -26,6 +26,8 @@ Measurement = Base.classes.measurement
 session1 = Session(engine)
 session2 = Session(engine)
 session3 = Session(engine)
+session4 = Session(engine)
+session5 = Session(engine)
 
 #################################################
 # Flask Setup
@@ -43,11 +45,17 @@ def welcome():
     precp = '/api/v1.0/precipitation'
     stn = '/api/v1.0/stations'
     temps = '/api/v1.0/tobs'
+    calc = '/api/v1.0/onetemp/<string:date1>'
+    calc2 = '/api/v1.0/twotemp/<string:date1>/<string:date2>'
     return (
         f"Available Routes:<br/>"
         f"<a href={precp}>Preciptation</a><br/>"
         f"<a href={stn}>Stations</a><br/>"
         f"<a href={temps}>Temperature Observations</a><br/>"
+        f"Observation Start Date in YYYY-MM-DD format \
+         (<a href='/api/v1.0/onetemp/2017-06-10'>example</a>)<br/>"
+        f"Observation Start Date/End Date in YYYY-MM-DD format\
+         (<a href='/api/v1.0/twotemp/2017-06-10/2017-06-24'>example</a>)<br/>"
         f"/api/v1.0/"
     )
 
@@ -102,12 +110,12 @@ def temperatures():
         (last_date,'%Y-%m-%d') - dt.timedelta(days=365))\
             .date(),'%Y-%m-%d')
 
-# Query the Measurements for days after and including start date    
+# Query the Measurements for days after and including start date
     results = session3.query(Measurement).\
     filter(func.strftime("%Y-%m-%d", Measurement.date) >= start_date)\
     .order_by(Measurement.date).all()
 
-    # # Create a dictionary from the row data and append to a list   
+    # # Create a dictionary from the row data and append to a list
     tobs_temps = []
     for result in results:
         temp_dict = {}
@@ -117,6 +125,55 @@ def temperatures():
 
     return jsonify(tobs_temps)
 
+
+@app.route("/api/v1.0/onetemp/<string:date1>")
+def onedate(date1):
+    Measurement = Base.classes.measurement
+    """Return temperature data"""
+    try:
+        results = session4.query(func.min(Measurement.tobs).label('min'), func.avg(Measurement.tobs).label('avg')\
+        , func.max(Measurement.tobs).label('max')).\
+        filter(Measurement.date >= date1).all()
+
+        stats = list(np.ravel(results))
+        tmp_stats = []
+        for result in results:
+            result_dict = {}
+            result_dict["min"] = result.min
+            result_dict["avg"] = result.avg
+            result_dict["max"] = result.max
+            tmp_stats.append(result_dict)
+
+        return jsonify(tmp_stats)
+        # return jsonify(stats)
+
+    except exc.SQLAlchemyError:
+        return f'something went wrong with {date1}'
+
+@app.route("/api/v1.0/twotemp/<string:date1>/<string:date2>")
+def twodates(date1, date2):
+    Measurement = Base.classes.measurement
+    try:
+        results = session5.query(func.min(Measurement.tobs).label('min'), func.avg(Measurement.tobs).label('avg')\
+        , func.max(Measurement.tobs).label('max')).\
+        filter(Measurement.date >= date1).filter(Measurement.date <= date2).all()
+        #Unravel the results
+
+        tmp_stats = []
+        for result in results:
+            result_dict = {}
+            result_dict["min"] = result.min
+            result_dict["avg"] = result.avg
+            result_dict["max"] = result.max
+            tmp_stats.append(result_dict)
+
+        return jsonify(tmp_stats)
+
+
+
+        return jsonify(stats)
+    except exc.SQLAlchemyError:
+        return 'Something went wrong'
 
 if __name__ == '__main__':
     app.run(debug=True)
