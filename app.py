@@ -12,7 +12,7 @@ from dateutil.parser import parse
 #################################################
 # Database Setup
 #################################################
-engine = create_engine("sqlite:///Resources/hawaii.sqlite")
+engine = create_engine("sqlite:///Resources/hawaii.sqlite?check_same_thread=False")
 
 # reflect an existing database into a new model
 Base = automap_base()
@@ -23,17 +23,12 @@ Base.prepare(engine, reflect=True)
 Measurement = Base.classes.measurement
 
 # Create our session (link) from Python to the DB
-session1 = Session(engine)
-session2 = Session(engine)
-session3 = Session(engine)
-session4 = Session(engine)
-session5 = Session(engine)
+session = Session(engine)
 
 #################################################
 # Flask Setup
 #################################################
 app = Flask(__name__)
-
 
 #################################################
 # Flask Routes
@@ -64,7 +59,7 @@ def welcome():
 def precipitation():
     """Return total preciptation data"""
     # Query all measurments
-    results = session1.query(Measurement).all()
+    results = session.query(Measurement).all()
 
     # Create a dictionary from the row data and append to a list
     prcp_data = []
@@ -82,7 +77,7 @@ def stations():
     """Return station data"""
     Station = Base.classes.station
     # Query all statios
-    station_results = session2.query(Station).all()
+    station_results = session.query(Station).all()
 
     # Create a dictionary from the row data and append to a list
     station_list = []
@@ -101,7 +96,7 @@ def temperatures():
     Measurement = Base.classes.measurement
     """Return temperature data"""
     # get the last date
-    get_last_date = session3.query(Measurement.date).\
+    get_last_date = session.query(Measurement.date).\
     order_by(Measurement.date.desc()).limit(1)
     last_date = get_last_date[0][0]
 
@@ -111,7 +106,7 @@ def temperatures():
             .date(),'%Y-%m-%d')
 
 # Query the Measurements for days after and including start date
-    results = session3.query(Measurement).\
+    results = session.query(Measurement).\
     filter(func.strftime("%Y-%m-%d", Measurement.date) >= start_date)\
     .order_by(Measurement.date).all()
 
@@ -134,8 +129,9 @@ def onedate(date1):
         parse(date1)
     except ValueError:
         return f"The date {date1} is not in the correct format or is invalid"
-    
-    results = session4.query(func.min(Measurement.tobs).label('min'), func.avg(Measurement.tobs).label('avg')\
+
+    results = session.query(func.min(Measurement.tobs).label('min'), \
+    func.avg(Measurement.tobs).label('avg')\
     , func.max(Measurement.tobs).label('max')).\
     filter(Measurement.date >= date1).all()
 
@@ -162,7 +158,8 @@ def twodates(date1, date2):
 
     Measurement = Base.classes.measurement
 
-    results = session5.query(func.min(Measurement.tobs).label('min'), func.avg(Measurement.tobs).label('avg')\
+    results = session.query(func.min(Measurement.tobs).label('min'),\
+     func.avg(Measurement.tobs).label('avg')\
     , func.max(Measurement.tobs).label('max')).\
     filter(Measurement.date >= date1).filter(Measurement.date <= date2).all()
     #Unravel the results
